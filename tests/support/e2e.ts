@@ -31,7 +31,7 @@ export async function signIn(page: Page, email = `e2e-${crypto.randomUUID()}@exa
   await go(page, "/login/");
   const main = page.getByRole("main");
   await main.getByLabel("Email").fill(email);
-  await main.getByRole("button", { name: "Email me a sign-in code" }).click();
+  await main.getByRole("button", { name: "Email me a sign-in link" }).click();
   await expect(main.getByRole("status")).toContainText(email);
   await main.getByLabel("Code").fill(await latestCode(email));
   await main.getByRole("button", { name: "Sign in" }).click();

@@ -12,7 +12,7 @@ Browser push services (Google, Mozilla, Apple) need no account.
 
 ## Why GitHub Pages changed the app
 
-Pages only serves files, with no server code. So the browser talks to Supabase directly, and **Row Level Security in the database is what keeps your data private**. It already was; the server code only added convenience checks. Sign-in uses an emailed 6-digit code instead of a password, because GitHub asks that Pages sites not handle passwords. Supabase's built-in email sends at most 2 messages per hour and only to your own team's addresses. That is enough for one person, because a sign-in lasts until you sign out.
+Pages only serves files, with no server code. So the browser talks to Supabase directly, and **Row Level Security in the database is what keeps your data private**. It already was; the server code only added convenience checks. Sign-in uses an emailed link instead of a password, because GitHub asks that Pages sites not handle passwords. Supabase's built-in email sends at most 2 messages per hour and only to your own team's addresses. That is enough for one person, because a sign-in lasts until you sign out.
 
 ## One-time setup
 
@@ -27,7 +27,7 @@ GitHub: repository **Settings > Pages > Build and deployment > Source: GitHub Ac
 - **Authentication > URL Configuration**
   - Site URL: `https://hasanawas.github.io/Memoinder/`
   - Redirect URLs: add `https://hasanawas.github.io/Memoinder/**`
-- **Authentication > Emails > Templates**: for both **Magic Link** and **Confirm signup**, set the subject to `Your Memoinder sign-in code` and paste the body of [`supabase/templates/magic_link.html`](../supabase/templates/magic_link.html). It shows the 6-digit code, which the default template does not.
+- **Authentication > Emails > Templates**: leave them as they are. Supabase only lets you edit them after adding custom SMTP, so the email has just a sign-in link. Open that link in the same browser where you asked for it. ([`supabase/templates/magic_link.html`](../supabase/templates/magic_link.html) adds a 6-digit code, for if you ever set up a free SMTP sender.)
 - Do **not** add a custom SMTP server, a custom domain or any add-on.
 
 ### 3. Database, schedule and sending function
@@ -69,6 +69,8 @@ Open `https://hasanawas.github.io/Memoinder/`, choose **Open my reminders**, and
 ### 6. Smoke test
 
 On your phone (Android: Chrome; iPhone: add to Home Screen first, then open it from there), sign in, choose **Turn on notifications**, then **Send a test**, and close the app. It should arrive within about a minute, and **History** should say "Shown on your device".
+
+On iPhone the sign-in link opens in Safari, not in the Home Screen app, so the app stays signed out. If that happens, tell me: the free fix is a custom SMTP sender (for example a Gmail app password), which lets the email show a code you can type into the app.
 
 ## Cost-safety checklist (I check this against your real dashboards before calling it $0)
 
