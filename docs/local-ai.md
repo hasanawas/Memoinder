@@ -28,6 +28,16 @@ The model is only asked **what** you want, using your own words for the time. Al
 
 To use a different model or a different AI system later, write another `AIProvider` (`src/lib/ai/intent.ts`). Nothing else changes.
 
+## Conversation memory and small talk
+
+The chat remembers what it is talking about, without any AI model (`src/lib/chat/conversation.ts`):
+
+- **Follow-ups:** after a suggestion or a save, "make it 7pm", "friday instead" or "no, 8am" change that reminder, keeping the day or the time you didn't mention. "Delete it" and "move that to Monday" mean the reminder just discussed.
+- **Small talk:** "hi", "thanks", "how are you", "who are you" and "help" get a short answer. Each kind of answer rotates through a few wordings, so the chat doesn't repeat the same sentence.
+- **History:** the conversation is kept in this browser (localStorage), so a reload or another page doesn't lose it. **New chat** clears it. It never leaves the browser.
+
+The hosted site has no AI model (a hosted model API would not be free), so the wording of answers is written by hand. With Ollama running, the model reads your messages, but the answers are still these.
+
 ## Setting up Ollama (optional)
 
 **Computer requirements.** These are practical guidance, not an official spec:

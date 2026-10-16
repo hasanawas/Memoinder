@@ -64,6 +64,38 @@ test.describe("chat with the built-in parser", () => {
   });
 });
 
+test.describe("chat that follows the conversation", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("http://127.0.0.1:11434/**", (route) => route.abort());
+    await signIn(page);
+  });
+
+  test("answers small talk, changes the time, deletes 'it', and survives a reload", async ({ page }) => {
+    await say(page, "hi");
+    await expect(conversation(page)).toContainText("What would you like me to remind you about?");
+
+    await say(page, "remind me to call mum tomorrow at 6pm");
+    await expect(conversation(page)).toContainText("at 18:00 (Asia/Karachi)");
+    await say(page, "actually make it 7pm");
+    await expect(conversation(page)).toContainText("at 19:00 (Asia/Karachi)");
+    // Only the newest suggestion can still be confirmed.
+    await expect(conversation(page).getByRole("button", { name: "Create" })).toHaveCount(1);
+    await conversation(page).getByRole("button", { name: "Create" }).click();
+    await expect(conversation(page)).toContainText('Saved "Call mum"');
+
+    await say(page, "thanks");
+    await expect(conversation(page)).toContainText("You're welcome!");
+
+    await say(page, "delete it");
+    await expect(conversation(page)).toContainText('Delete "Call mum"');
+    await conversation(page).getByRole("button", { name: "Delete" }).click();
+    await expect(conversation(page)).toContainText('Deleted "Call mum"');
+
+    await page.reload();
+    await expect(conversation(page)).toContainText('Deleted "Call mum"');
+  });
+});
+
 test.describe("chat with a local model", () => {
   async function fakeOllama(page: Page, reply: (body: { messages: { content: string }[] }) => string) {
     await page.route("http://127.0.0.1:11434/api/tags", (route) =>

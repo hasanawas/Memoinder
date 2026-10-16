@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowUpIcon, Logo } from "@/components/icons";
 import { onNewChat } from "@/lib/events";
+import { useAuth } from "@/components/auth";
+import { afterParse, beforeParse, emptyMemory, type ChatMemory } from "@/lib/chat/conversation";
 import type { Intent } from "@/lib/ai/intent";
 import { ruleBasedProvider } from "@/lib/ai/rules";
 import {
@@ -14,7 +16,7 @@ import {
   OllamaOutputError,
 } from "@/lib/ai/ollama";
 import type { Clarify } from "@/lib/chat/resolve";
-import { confirmCreate, confirmDelete, confirmReschedule, respond, type ChatReply } from "./actions";
+import { confirmCreate, confirmDelete, confirmReschedule, respond, type ChatReply, type ConfirmResult } from "./actions";
 
 type Mode = "auto" | "rules";
 interface Settings {
@@ -30,6 +32,26 @@ type Entry =
 type NewEntry = Entry extends unknown ? (Entry extends infer E ? (E extends unknown ? Omit<E, "id"> : never) : never) : never;
 
 const SETTINGS_KEY = "memoinder.ai";
+const CHAT_KEY = "memoinder.chat.v1";
+
+interface Saved {
+  entries: Entry[];
+  pending: Clarify | null;
+  memory: ChatMemory;
+}
+
+// The conversation is kept in this browser only (like a chat app's history),
+// so a reload or a visit to another page doesn't lose it. "New chat" clears it.
+function loadChat(key: string): Saved {
+  const empty = { entries: [], pending: null, memory: emptyMemory() };
+  if (typeof window === "undefined") return empty;
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) ?? "null") as Saved | null;
+    return saved && Array.isArray(saved.entries) ? { ...empty, ...saved, memory: { ...emptyMemory(), ...saved.memory } } : empty;
+  } catch {
+    return empty;
+  }
+}
 const noopSubscribe = () => () => {};
 
 function loadSettings(): Settings {
@@ -53,10 +75,15 @@ export function Chat() {
   const onClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [models, setModels] = useState<string[] | null | undefined>(undefined);
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [pending, setPending] = useState<Clarify | null>(null);
+  const auth = useAuth();
+  const chatKey = `${CHAT_KEY}.${auth.status === "signed-in" ? auth.userId : "anon"}`;
+  // Only rendered after hydration (see `current`), so reading storage here is safe.
+  const [restored] = useState(() => loadChat(chatKey));
+  const [entries, setEntries] = useState<Entry[]>(restored.entries);
+  const [pending, setPending] = useState<Clarify | null>(restored.pending);
   const [busy, setBusy] = useState(false);
-  const nextId = useRef(1);
+  const memory = useRef<ChatMemory>(restored.memory);
+  const nextId = useRef(Math.max(0, ...restored.entries.map((e) => e.id)) + 1);
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const timeZone = onClient ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
@@ -78,10 +105,20 @@ export function Chat() {
       onNewChat(() => {
         setEntries([]);
         setPending(null);
+        memory.current = emptyMemory();
         input.current?.focus();
       }),
     [],
   );
+
+  useEffect(() => {
+    try {
+      if (entries.length === 0) localStorage.removeItem(chatKey);
+      else localStorage.setItem(chatKey, JSON.stringify({ entries: entries.slice(-100), pending, memory: memory.current }));
+    } catch {
+      // Private browsing: the chat just won't survive a reload.
+    }
+  }, [entries, pending, chatKey]);
 
   // Keep the newest message in view.
   useEffect(() => {
@@ -124,7 +161,40 @@ export function Chat() {
   async function send(intent: Intent, via?: string, note?: string) {
     const reply = await respond(intent, timeZone);
     setPending(reply.kind === "clarify" ? reply : null);
+    remember(intent, reply);
+    // A new suggestion replaces any older one still waiting for a yes/no.
+    if (reply.kind.startsWith("proposal")) {
+      setEntries((xs) => xs.map((x) => (x.from === "app" && !x.done && x.reply.kind.startsWith("proposal") ? { ...x, done: true } : x)));
+    }
     push({ from: "app", reply, via, note });
+  }
+
+  /** Notes what the conversation is now about, for "make it 7pm" or "delete it". */
+  function remember(intent: Intent, reply: ChatReply) {
+    const m = memory.current;
+    if (reply.kind === "proposal-create" && intent.action === "create") m.pendingCreate = intent;
+    if (reply.kind === "proposal-reschedule") {
+      m.pendingCreate = undefined;
+      m.lastReminder = { id: reply.id, title: reply.title, when: intent.action === "reschedule" ? intent.when : undefined };
+    }
+    if (reply.kind === "proposal-delete") {
+      m.pendingCreate = undefined;
+      m.lastReminder = { id: reply.id, title: reply.title, when: reply.next ?? undefined };
+    }
+    if (reply.kind === "list" && reply.items.length === 1) {
+      const [i] = reply.items;
+      m.lastReminder = { id: i.id, title: i.title, when: i.next };
+    }
+  }
+
+  function afterConfirm(kind: ChatReply["kind"], r: ConfirmResult) {
+    const m = memory.current;
+    if (!r.ok) return;
+    if (kind === "proposal-create" && r.id && m.pendingCreate) {
+      m.lastReminder = { id: r.id, title: m.pendingCreate.title, when: m.pendingCreate.when };
+      m.pendingCreate = undefined;
+    }
+    if (kind === "proposal-delete") m.lastReminder = undefined;
   }
 
   async function submitText(raw: string) {
@@ -133,11 +203,19 @@ export function Chat() {
     push({ from: "you", text });
     setBusy(true);
     try {
+      const ctx = { now: new Date(), timeZone };
+      const early = pending && pending.need !== "which" ? null : beforeParse(text, memory.current, ctx);
       if (pending && pending.need !== "which") {
         await send(answer(pending, text), "your answer");
+      } else if (early && "reply" in early) {
+        push({ from: "app", reply: { kind: "message", text: early.reply } });
+      } else if (early) {
+        await send(early.intent, "the conversation so far");
       } else {
         const { intent, via, note } = await interpret(text);
-        await send(intent, via, note);
+        const next = afterParse(intent, memory.current, ctx);
+        if ("reply" in next) push({ from: "app", reply: { kind: "message", text: next.reply }, via, note });
+        else await send(next, via, note);
       }
     } catch (err) {
       push({ from: "app", reply: { kind: "message", text: `Something went wrong: ${(err as Error).message}` } });
@@ -156,10 +234,15 @@ export function Chat() {
     input.current?.focus();
   }
 
-  async function act(entryId: number, run: () => Promise<{ ok: boolean; text: string }>) {
+  async function act(entryId: number, run: () => Promise<ConfirmResult>, cancel = false) {
+    const entry = entries.find((x) => x.id === entryId);
     setBusy(true);
     try {
       const r = await run();
+      if (entry?.from === "app") {
+        if (cancel) memory.current.pendingCreate = undefined;
+        else afterConfirm(entry.reply.kind, r);
+      }
       markDone(entryId);
       push({ from: "app", reply: { kind: "message", text: r.text } });
     } finally {
@@ -360,18 +443,18 @@ function Reply({
 }: {
   entry: Extract<Entry, { from: "app" }>;
   busy: boolean;
-  act: (id: number, run: () => Promise<{ ok: boolean; text: string }>) => void;
+  act: (id: number, run: () => Promise<ConfirmResult>, cancel?: boolean) => void;
   choose: (id: number, intent: Intent, label: string) => void;
 }) {
   const r = entry.reply;
   const off = busy || entry.done;
-  const buttons = (confirmLabel: string, run: () => Promise<{ ok: boolean; text: string }>) =>
+  const buttons = (confirmLabel: string, run: () => Promise<ConfirmResult>) =>
     !entry.done && (
       <div className="flex gap-2">
         <button className="btn-primary" disabled={off} onClick={() => act(entry.id, run)}>
           {confirmLabel}
         </button>
-        <button className="btn-secondary" disabled={off} onClick={() => act(entry.id, async () => ({ ok: true, text: "Cancelled. Nothing was changed." }))}>
+        <button className="btn-secondary" disabled={off} onClick={() => act(entry.id, async () => ({ ok: true, text: "Cancelled. Nothing was changed." }), true)}>
           Cancel
         </button>
       </div>

@@ -117,19 +117,20 @@ const draftSchema = z.object({
   schedule: scheduleSchema,
 });
 
-export type ConfirmResult = { ok: true; text: string } | { ok: false; text: string };
+export type ConfirmResult = { ok: true; text: string; id?: string } | { ok: false; text: string };
 
 async function saveDraft(rawDraft: unknown, id: string | null): Promise<ConfirmResult> {
   const d = draftSchema.safeParse(rawDraft);
   if (!d.success) return { ok: false, text: "That reminder was not valid; nothing was saved." };
   const built = draftToRow(d.data, new Date());
   if (!built.ok) return { ok: false, text: `Not saved: ${Object.values(built.errors)[0]}` };
+  let savedId = id;
   if (id) {
     if (!(await updateReminder(id, built.row))) return { ok: false, text: "That reminder no longer exists." };
   } else {
-    await insertReminder(built.row);
+    savedId = await insertReminder(built.row);
   }
-  return { ok: true, text: `Saved "${d.data.title}". ${describeSchedule(d.data.schedule)}.` };
+  return { ok: true, id: savedId ?? undefined, text: `Saved "${d.data.title}". ${describeSchedule(d.data.schedule)}.` };
 }
 
 export async function confirmCreate(draft: unknown): Promise<ConfirmResult> {
