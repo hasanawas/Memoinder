@@ -36,8 +36,9 @@ jobs:
           # Row Level Security, not secrecy of these values, protects the data.
           NEXT_PUBLIC_SUPABASE_URL: https://qsswfleiurvwlumudwia.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_UrQJfeEWDr-GGnAE0okfWA_FWdLmceq
-          # Filled in once the VAPID keys exist (docs/deploy.md, step 3).
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ""
+          # From the "Set up Supabase" run on 2026-10-16. Public by design: the
+          # private half stays in the Edge Function's secrets.
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: BAfUda08JKToeZajj8n5zS6R0UhucHnh8yerv1b0vPCv4j0dO2_u-3Mub5iGQAvWxaU5EQnICHWiUE2sdrcfFgA
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out
