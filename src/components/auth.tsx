@@ -33,7 +33,11 @@ export function RequireSignIn({ children }: { children: ReactNode }) {
   }, [auth.status, router]);
 
   if (auth.status !== "signed-in") {
-    return <p className="text-zinc-500">{auth.status === "loading" ? "Loading…" : "Redirecting to sign in…"}</p>;
+    return (
+      <div className="flex flex-1 items-center justify-center p-10 text-muted">
+        {auth.status === "loading" ? "Loading…" : "Redirecting to sign in…"}
+      </div>
+    );
   }
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }

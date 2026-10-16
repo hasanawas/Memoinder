@@ -86,7 +86,7 @@ test("a reminder is shown with the tab closed, and the history says so", async (
   // The Service Worker told the server, so the history can honestly say "shown".
   await go(check, "/reminders/history/");
   await expect(check.getByRole("main").getByText("Shown on your device")).toBeVisible();
-  await go(check, "/reminders/");
+  await go(check, "/reminders/list/");
   await expect(check.getByRole("main").getByTestId("last-delivery")).toContainText("Shown on your device");
   await context.close();
 });

@@ -31,7 +31,7 @@ The browser talks to Supabase with a **publishable key** that anyone can read fr
 - `src/proxy.ts` runs before each page, refreshes the session cookie and sends signed-out visitors to `/login`.
 - `src/lib/reminders/data.ts` is the only code that queries reminders. It re-checks the session every time.
 - `src/lib/reminders/form.ts` turns the form into an engine schedule and a row, including `next_fire_at`. It refuses one-off times that have already passed.
-- Pages: `/login`, `/reminders` (upcoming and finished), `/reminders/new`, `/reminders/[id]/edit`. Delete is a button on the list.
+- Pages: `/login`, `/reminders/` (the chat, where you land after signing in), `/reminders/list/` (upcoming and finished), `/reminders/new/`, `/reminders/edit/?id=…`, `/reminders/history/`. Delete is a button on the list. A sidebar (a drawer on phones) links them and holds the notification switch.
 
 ## Local development
 

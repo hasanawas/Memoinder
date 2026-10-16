@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { ArrowUpIcon, Logo } from "@/components/icons";
+import { onNewChat } from "@/lib/events";
 import type { Intent } from "@/lib/ai/intent";
 import { ruleBasedProvider } from "@/lib/ai/rules";
 import {
@@ -55,6 +57,8 @@ export function Chat() {
   const [pending, setPending] = useState<Clarify | null>(null);
   const [busy, setBusy] = useState(false);
   const nextId = useRef(1);
+  const bottom = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const timeZone = onClient ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
   const current = settings ?? (onClient ? loadSettings() : null);
 
@@ -67,6 +71,22 @@ export function Chat() {
       cancelled = true;
     };
   }, [current?.mode, current?.url]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "New chat" in the sidebar starts over.
+  useEffect(
+    () =>
+      onNewChat(() => {
+        setEntries([]);
+        setPending(null);
+        input.current?.focus();
+      }),
+    [],
+  );
+
+  // Keep the newest message in view.
+  useEffect(() => {
+    bottom.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+  }, [entries.length, busy]);
 
   function save(next: Settings) {
     setSettings(next);
@@ -107,12 +127,9 @@ export function Chat() {
     push({ from: "app", reply, via, note });
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const text = String(new FormData(form).get("message") ?? "").trim();
+  async function submitText(raw: string) {
+    const text = raw.trim();
     if (!text || busy) return;
-    form.reset();
     push({ from: "you", text });
     setBusy(true);
     try {
@@ -127,6 +144,16 @@ export function Chat() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const text = String(new FormData(form).get("message") ?? "");
+    if (!text.trim() || busy) return;
+    form.reset();
+    await submitText(text);
+    input.current?.focus();
   }
 
   async function act(entryId: number, run: () => Promise<{ ok: boolean; text: string }>) {
@@ -151,7 +178,7 @@ export function Chat() {
     }
   }
 
-  if (!current) return <p className="text-zinc-500">Loading chat…</p>;
+  if (!current) return <p className="p-6 text-muted">Loading chat…</p>;
 
   const aiStatus =
     current.mode === "rules"
@@ -163,77 +190,166 @@ export function Chat() {
           : models.includes(current.model)
             ? `Local model: ${current.model}`
             : `Ollama is running but ${current.model} is not installed, using the built-in parser`;
+  const usingModel = current.mode === "auto" && Boolean(models?.includes(current.model));
+  const empty = entries.length === 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      <details className="rounded-md border border-zinc-200 p-3 text-sm dark:border-zinc-800">
-        <summary className="cursor-pointer">
-          <span role="status">{aiStatus}</span>
-        </summary>
-        <div className="mt-3 flex flex-col gap-3">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={current.mode === "auto"}
-              onChange={(e) => save({ ...current, mode: e.target.checked ? "auto" : "rules" })}
-            />
-            Use the local model when it&apos;s running
-          </label>
-          <label className="flex flex-col gap-1">
-            Model
-            <input
-              className="field"
-              defaultValue={current.model}
-              onBlur={(e) => save({ ...current, model: e.target.value.trim() || DEFAULT_OLLAMA_MODEL })}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Ollama address
-            <input
-              className="field"
-              defaultValue={current.url}
-              onBlur={(e) => save({ ...current, url: e.target.value.trim() || DEFAULT_OLLAMA_URL })}
-            />
-          </label>
-          <p className="text-xs text-zinc-500">
-            The model runs on your computer and is called from this browser. Set-up steps are in docs/local-ai.md.
-          </p>
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-6 pt-2">
+          {empty && (
+            <div className="flex flex-col items-center gap-6 pt-[12vh] text-center">
+              <Logo size={44} />
+              <div className="flex flex-col gap-2">
+                <h2 className="text-3xl font-semibold tracking-tight">{greeting()}</h2>
+                <p className="text-muted">What should I remind you about? I&apos;ll show you exactly what I understood before saving.</p>
+              </div>
+              <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => submitText(s)}
+                    className="card px-4 py-3 text-left text-sm transition hover:border-accent/50 hover:bg-bubble/40"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted md:hidden">Turn on notifications from the menu (top left) to get reminders here.</p>
+            </div>
+          )}
+
+          <ol className="flex flex-col gap-6" aria-label="Conversation">
+            {entries.map((e) =>
+              e.from === "you" ? (
+                <li
+                  key={e.id}
+                  className="max-w-[85%] self-end whitespace-pre-wrap rounded-3xl rounded-br-lg bg-bubble px-4 py-2.5"
+                >
+                  {e.text}
+                </li>
+              ) : (
+                <li key={e.id} className="flex gap-3">
+                  <span className="mt-0.5">
+                    <Logo size={26} />
+                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-3 leading-relaxed">
+                    <Reply entry={e} busy={busy} act={act} choose={choose} />
+                    {(e.via || e.note) && (
+                      <p className="text-xs text-muted">
+                        {e.note ?? ""} {e.via ? `Understood by: ${e.via}.` : ""}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ),
+            )}
+          </ol>
+          {busy && (
+            <div className="flex items-center gap-3" aria-hidden>
+              <Logo size={26} />
+              <span className="flex gap-1">
+                <span className="h-2 w-2 animate-bounce rounded-full bg-muted [animation-delay:-0.3s]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-muted [animation-delay:-0.15s]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-muted" />
+              </span>
+            </div>
+          )}
+          <div ref={bottom} />
         </div>
-      </details>
+      </div>
 
-      <ol className="flex flex-col gap-3" aria-label="Conversation">
-        {entries.map((e) =>
-          e.from === "you" ? (
-            <li key={e.id} className="self-end rounded-lg bg-zinc-900 px-3 py-2 text-white dark:bg-zinc-100 dark:text-zinc-900">
-              {e.text}
-            </li>
-          ) : (
-            <li key={e.id} className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              <Reply entry={e} busy={busy} act={act} choose={choose} />
-              {(e.via || e.note) && (
-                <p className="text-xs text-zinc-500">
-                  {e.note ?? ""} {e.via ? `Understood by: ${e.via}.` : ""}
-                </p>
-              )}
-            </li>
-          ),
-        )}
-      </ol>
-
-      <form onSubmit={onSubmit} className="flex gap-2">
-        <input
-          name="message"
-          aria-label="Message"
-          autoComplete="off"
-          placeholder={pending?.need === "which" ? "Pick one above" : pending ? "Your answer…" : 'e.g. "remind me to call mum tomorrow at 6pm"'}
-          className="field flex-1"
-        />
-        <button className="btn-primary" disabled={busy}>
-          {busy ? "…" : "Send"}
-        </button>
-      </form>
+      <div className="shrink-0 bg-gradient-to-t from-bg via-bg to-bg/0 px-4 pb-4 pt-2">
+        <form onSubmit={onSubmit} className="mx-auto w-full max-w-3xl">
+          <div className="card flex items-end gap-2 rounded-3xl p-2 pl-4 transition focus-within:border-accent/60 focus-within:ring-2 focus-within:ring-accent/15">
+            <textarea
+              ref={input}
+              name="message"
+              aria-label="Message"
+              autoComplete="off"
+              rows={1}
+              onKeyDown={(e) => {
+                // Enter sends, Shift+Enter adds a line, as in other chat apps.
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
+                }
+              }}
+              onInput={(e) => {
+                const t = e.currentTarget;
+                t.style.height = "auto";
+                t.style.height = `${Math.min(t.scrollHeight, 200)}px`;
+              }}
+              placeholder={
+                pending?.need === "which" ? "Pick one above" : pending ? "Your answer…" : "Message Memoinder"
+              }
+              className="max-h-[200px] min-h-[40px] flex-1 resize-none bg-transparent py-2 text-base outline-none placeholder:text-muted"
+            />
+            <button
+              aria-label="Send"
+              disabled={busy}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink transition hover:bg-accent-hover disabled:opacity-40"
+            >
+              <ArrowUpIcon />
+            </button>
+          </div>
+        </form>
+        <details className="group mx-auto mt-2 w-full max-w-3xl text-xs text-muted">
+          <summary className="mx-auto flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-full px-3 py-1 hover:bg-bubble/70">
+            <span className={`h-1.5 w-1.5 rounded-full ${usingModel ? "bg-ok" : "bg-muted"}`} aria-hidden />
+            <span role="status">{aiStatus}</span>
+          </summary>
+          <div className="card mt-2 flex flex-col gap-3 p-4 text-sm text-ink">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="accent-[var(--accent)]"
+                checked={current.mode === "auto"}
+                onChange={(e) => save({ ...current, mode: e.target.checked ? "auto" : "rules" })}
+              />
+              Use the local model when it&apos;s running
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                Model
+                <input
+                  className="field"
+                  defaultValue={current.model}
+                  onBlur={(e) => save({ ...current, model: e.target.value.trim() || DEFAULT_OLLAMA_MODEL })}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                Ollama address
+                <input
+                  className="field"
+                  defaultValue={current.url}
+                  onBlur={(e) => save({ ...current, url: e.target.value.trim() || DEFAULT_OLLAMA_URL })}
+                />
+              </label>
+            </div>
+            <p className="text-xs text-muted">
+              The model runs on your own computer and is called from this browser. Without it, the built-in parser
+              understands everyday phrases. Set-up steps are in docs/local-ai.md.
+            </p>
+          </div>
+        </details>
+      </div>
     </div>
   );
+}
+
+const SUGGESTIONS = [
+  "Remind me to call mum tomorrow at 6pm",
+  "Gym every Monday and Thursday at 7am",
+  "Pay rent every month on the 1st at 9am",
+  "What do I have tomorrow?",
+];
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
 function Reply({
@@ -286,10 +402,10 @@ function Reply({
           <p>
             {r.kind === "proposal-create" ? "Create this reminder?" : `Move "${r.title}" to this schedule?`}
           </p>
-          <div className="rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
+          <div className="card flex flex-col gap-1 border-l-4 border-l-accent p-4">
             <p className="font-medium">{r.proposal.draft.title}</p>
             <p className="text-sm">{r.proposal.summary}</p>
-            <p className="text-sm text-zinc-500">Next: {r.proposal.nextTimes.join(" · ")}</p>
+            <p className="text-sm text-muted">Next: {r.proposal.nextTimes.join(" · ")}</p>
           </div>
           {buttons(r.kind === "proposal-create" ? "Create" : "Move", () =>
             r.kind === "proposal-create" ? confirmCreate(r.proposal.draft) : confirmReschedule(r.id, r.proposal.draft),
@@ -310,17 +426,17 @@ function Reply({
         <>
           <p className="font-medium">{r.heading}</p>
           {r.items.length === 0 ? (
-            <p className="text-sm text-zinc-500">Nothing scheduled.</p>
+            <p className="text-sm text-muted">Nothing scheduled.</p>
           ) : (
-            <ul className="flex flex-col gap-1 text-sm">
+            <ul className="card flex flex-col divide-y divide-line text-sm">
               {r.items.map((i) => (
-                <li key={i.id}>
-                  <strong>{i.next}</strong> {i.title} <span className="text-zinc-500">· {i.summary}</span>
+                <li key={i.id} className="px-4 py-2.5">
+                  <strong>{i.next}</strong> {i.title} <span className="text-muted">· {i.summary}</span>
                 </li>
               ))}
             </ul>
           )}
-          <Link href="/reminders/" className="text-sm underline">
+          <Link href="/reminders/list/" className="text-sm text-accent hover:underline">
             Open the full list
           </Link>
         </>

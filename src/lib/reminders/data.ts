@@ -1,5 +1,6 @@
 import { supabase as client } from "@/lib/supabase/client";
 import type { ReminderRow, ReminderRowInput } from "./form";
+import { remindersChanged } from "@/lib/events";
 
 // Data access layer: the only place that reads or writes reminders. It runs
 // in the browser, so it is a convenience, not a security boundary: the
@@ -46,6 +47,7 @@ export async function insertReminder(row: ReminderRowInput): Promise<void> {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("reminders").insert(row);
   if (error) throw new Error(`Could not save reminder: ${error.message}`);
+  remindersChanged();
 }
 
 /** Returns false when no row was changed (missing, or not this user's). */
@@ -53,6 +55,7 @@ export async function updateReminder(id: string, row: ReminderRowInput): Promise
   const { supabase } = await requireUser();
   const { data, error } = await supabase.from("reminders").update(row).eq("id", id).select("id");
   if (error) throw new Error(`Could not update reminder: ${error.message}`);
+  remindersChanged();
   return data.length > 0;
 }
 
@@ -60,4 +63,5 @@ export async function deleteReminder(id: string): Promise<void> {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("reminders").delete().eq("id", id);
   if (error) throw new Error(`Could not delete reminder: ${error.message}`);
+  remindersChanged();
 }

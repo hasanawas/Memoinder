@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { removeDeviceAction, saveDeviceAction, sendTestAction } from "@/app/reminders/notifications/actions";
 import { withBase } from "@/lib/paths";
+import { BellIcon } from "@/components/icons";
 import { supabaseEnv } from "@/lib/supabase/env";
 
 // Lets you turn notifications on for this browser/device. Once on, reminders
@@ -144,49 +145,59 @@ export function NotificationsPanel({
     );
   }
 
+  const on = state.kind === "on";
   return (
-    <section aria-labelledby="notifications-heading" className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-      <h2 id="notifications-heading" className="font-medium">
+    <section aria-labelledby="notifications-heading" className="card flex flex-col gap-2 p-3 text-sm">
+      <h2 id="notifications-heading" className="flex items-center gap-2 font-medium">
+        <BellIcon width={16} height={16} className={on ? "text-accent" : "text-muted"} />
         Notifications
+        <span className={`ml-auto h-2 w-2 rounded-full ${on ? "bg-ok" : "bg-line"}`} aria-hidden />
       </h2>
-      {state.kind === "checking" && <p className="text-zinc-500">Checking this browser…</p>}
-      {state.kind === "unsupported" && <p>{state.reason}</p>}
+      {state.kind === "checking" && <p className="text-muted">Checking this browser…</p>}
+      {state.kind === "unsupported" && <p className="text-muted">{state.reason}</p>}
       {state.kind === "denied" && (
-        <p>Notifications are blocked for this site. Allow them in your browser&apos;s site settings, then reload this page.</p>
+        <p className="text-muted">
+          Notifications are blocked for this site. Allow them in your browser&apos;s site settings, then reload this page.
+        </p>
       )}
       {state.kind === "off" && (
-        <div className="flex flex-wrap items-center gap-3">
-          <p>This device will not get reminders.</p>
-          <button className="btn-primary" onClick={turnOn} disabled={busy}>
+        <>
+          <p className="text-muted">This device will not get reminders.</p>
+          <button className="btn-primary w-full" onClick={turnOn} disabled={busy}>
             Turn on notifications
           </button>
-        </div>
+        </>
       )}
-      {state.kind === "on" && (
-        <div className="flex flex-wrap items-center gap-3">
-          <p>This device gets reminders, even with Memoinder closed.</p>
-          <button className="btn-secondary" onClick={sendTest} disabled={busy}>
-            Send a test
-          </button>
-          <button className="btn-secondary" onClick={turnOff} disabled={busy}>
-            Turn off
-          </button>
-        </div>
+      {on && (
+        <>
+          <p className="text-muted">This device gets reminders, even with Memoinder closed.</p>
+          <div className="flex gap-2">
+            <button className="btn-secondary flex-1 px-2" onClick={sendTest} disabled={busy}>
+              Send a test
+            </button>
+            <button className="btn-secondary flex-1 px-2" onClick={turnOff} disabled={busy}>
+              Turn off
+            </button>
+          </div>
+        </>
       )}
-      <p className="text-xs text-zinc-500">
-        On a phone, reminders arrive even when the browser is closed. On a computer, the browser itself must still be
-        running (with no windows open is fine); if it is fully quit, the reminder waits up to 24 hours for it to start.
-      </p>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-muted">
         {deviceCount === 0
           ? "No devices have notifications on."
           : `${deviceCount} ${deviceCount === 1 ? "device has" : "devices have"} notifications on.`}
       </p>
       {message && (
-        <p role="status" className="text-zinc-700 dark:text-zinc-300">
+        <p role="status" className="text-xs">
           {message}
         </p>
       )}
+      <details className="text-xs text-muted">
+        <summary className="cursor-pointer hover:text-ink">How delivery works</summary>
+        <p className="mt-1">
+          On a phone, reminders arrive even when the browser is closed. On a computer, the browser itself must still be
+          running (with no windows open is fine); if it is fully quit, the reminder waits up to 24 hours for it to start.
+        </p>
+      </details>
     </section>
   );
 }
