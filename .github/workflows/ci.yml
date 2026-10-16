@@ -16,7 +16,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,5 +31,18 @@ jobs:
       - run: npm test
         env:
           TZ: Pacific/Kiritimati
+
+      # A throwaway local Supabase (Postgres + Auth) inside the runner, with
+      # this branch's migrations applied. Nothing hosted is touched.
+      - name: Start local Supabase
+        run: npx supabase start -x studio,imgproxy,postgres-meta,vector,logflare,supavisor,edge-runtime
+      - name: Write .env.local for the tests
+        run: |
+          npx supabase status -o env \
+            | grep -E '^(API_URL|PUBLISHABLE_KEY)=' \
+            | sed -e 's/^API_URL=/NEXT_PUBLIC_SUPABASE_URL=/' -e 's/^PUBLISHABLE_KEY=/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=/' \
+            > .env.local
+      - run: npm run test:db
+
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

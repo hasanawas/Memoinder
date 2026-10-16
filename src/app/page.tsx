@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { phases, progressLabel, site } from "@/lib/site";
 
 export default function Home() {
@@ -6,6 +7,11 @@ export default function Home() {
       <header className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">{site.name}</h1>
         <p className="text-zinc-600 dark:text-zinc-400">{site.tagline}</p>
+        <div>
+          <Link href="/reminders" className="btn-primary inline-block">
+            Open my reminders
+          </Link>
+        </div>
       </header>
 
       <section aria-labelledby="progress" className="flex flex-col gap-3">
