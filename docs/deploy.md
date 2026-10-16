@@ -5,7 +5,7 @@ Memoinder runs on three free services. Nothing here needs a card, and none shoul
 | Service | What it runs | Plan | Limits that matter (checked 2026-10-16) |
 |---|---|---|---|
 | **GitHub Pages** | The website (static HTML/JS) at `https://hasanawas.github.io/Memoinder/` | Free, public repo | 1 GB site, 100 GB/month soft bandwidth, personal and non-commercial use only, should not handle passwords or card numbers ([limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)) |
-| **GitHub Actions** | Tests on every PR; building and publishing the site | Free for public repos | Standard runners |
+| **GitHub Actions** | Tests on every PR; building and publishing the site; the one-click Supabase setup | Free for public repos | Standard runners |
 | **Supabase** | Database, sign-in, the every-minute schedule, the sending function | **Free** | 500 MB database, 500k function calls/month, pauses after 7 days of low activity, built-in email: 2 per hour and **only to members of your Supabase team** ([email limits](https://supabase.com/docs/guides/auth/auth-smtp)) |
 
 Browser push services (Google, Mozilla, Apple) need no account.
@@ -16,7 +16,7 @@ Pages only serves files, with no server code. So the browser talks to Supabase d
 
 ## One-time setup
 
-Run the terminal steps on your own computer, in a clone of the repository, after `npm install`. Steps 3 to 5 need Docker running (the same as local development): the sending function bundles to about 12 MB, which is over the 5 MB limit for bundling without Docker.
+Nothing needs installing on your computer: the database and the sending function are set up by a GitHub Actions workflow you start with one click (step 3). GitHub's machines already have Docker, which bundling the sending function needs.
 
 ### 1. Turn on GitHub Pages
 
@@ -32,35 +32,36 @@ GitHub: repository **Settings > Pages > Build and deployment > Source: GitHub Ac
 
 ### 3. Database, schedule and sending function
 
+1. **Get a Supabase access token**: [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) > **Generate new token**, name it `memoinder-setup`, copy it.
+2. **Add two repository secrets**: GitHub repository **Settings > Secrets and variables > Actions > New repository secret**:
+   - `SUPABASE_ACCESS_TOKEN`: the token from step 1.
+   - `SUPABASE_DB_PASSWORD`: the database password you chose when creating the project (forgot it? **Project Settings > Database > Reset database password**).
+3. **Run it**: **Actions** tab > **Set up Supabase** > **Run workflow**. It takes a few minutes and:
+   - creates the tables, access rules and every-minute schedule (`supabase db push`);
+   - creates the push keys and a random dispatch secret, stores them as function secrets and in Vault, without printing the private ones;
+   - deploys the sending function.
+
+   When it finishes, open the run: its summary shows the **public push key**.
+
+It is safe to run again later (for example after a new migration): it keeps the existing keys. The access token can do anything in your Supabase account, so you can delete it on the tokens page once setup is done and make a new one if you ever need to run the workflow again.
+
+<details><summary>Doing it from your own computer instead (needs Docker)</summary>
+
 ```bash
-npx supabase login                                      # opens your browser
-npx supabase link --project-ref qsswfleiurvwlumudwia    # asks for the database password
-npx supabase db push                                    # creates tables, access rules and the cron jobs
-
-npm run push:keys                                       # prints a VAPID key pair
-node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"   # a random dispatch secret
-
-npx supabase secrets set \
-  MEMOINDER_DISPATCH_SECRET=<the random secret> \
-  VAPID_PUBLIC_KEY=<public key> \
-  VAPID_PRIVATE_KEY=<private key> \
-  VAPID_SUBJECT=mailto:<your email>
-
-npx supabase functions deploy dispatch-reminders        # verify_jwt=false comes from supabase/config.toml
+npx supabase login
+npx supabase link --project-ref qsswfleiurvwlumudwia
+npx supabase db push
+npm run push:keys
+npx supabase secrets set MEMOINDER_DISPATCH_SECRET=<random> VAPID_PUBLIC_KEY=<public> VAPID_PRIVATE_KEY=<private> VAPID_SUBJECT=https://github.com/hasanawas/Memoinder
+npx supabase functions deploy dispatch-reminders
 ```
 
-Then in **SQL Editor**, run this once (same random secret as above):
-
-```sql
-select vault.create_secret('https://qsswfleiurvwlumudwia.supabase.co/functions/v1/dispatch-reminders', 'memoinder_dispatch_url');
-select vault.create_secret('<the random secret>', 'memoinder_dispatch_secret');
-```
-
-Keep the private key and the random secret only in those two places. Never paste them into chat, an issue or a commit.
+Then in **SQL Editor**: `select vault.create_secret('https://qsswfleiurvwlumudwia.supabase.co/functions/v1/dispatch-reminders', 'memoinder_dispatch_url');` and `select vault.create_secret('<random>', 'memoinder_dispatch_secret');`.
+</details>
 
 ### 4. Give the site the public key
 
-Send me the **public** VAPID key (it is meant to be public). I add it to `.github/workflows/pages.yml`, and the next deploy turns on the notifications panel.
+Send me the **public** push key from the workflow summary (it is meant to be public). I add it to `.github/workflows/pages.yml`, and the next deploy turns on the notifications panel.
 
 ### 5. Create your account, then close sign-ups
 

@@ -1,0 +1,116 @@
+name: Set up Supabase
+
+# One click instead of installing Docker and the Supabase CLI on your computer.
+# Run it from the Actions tab: "Set up Supabase" > Run workflow. It is safe to run
+# again: it applies new migrations and redeploys the sending function, and only
+# creates push keys the first time.
+#
+# Needs two repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_ACCESS_TOKEN  a personal access token from supabase.com/dashboard/account/tokens
+#   SUPABASE_DB_PASSWORD   the database password you chose when creating the project
+#
+# This repository is public, so its Actions logs are public too. Nothing secret
+# is printed: generated values are masked before use. Actions is free for
+# public repositories.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-setup
+  cancel-in-progress: false
+
+env:
+  PROJECT_REF: qsswfleiurvwlumudwia
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the secrets are set
+        run: |
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Add the SUPABASE_ACCESS_TOKEN repository secret first (docs/deploy.md, step 3)."; exit 1; }
+          [ -n "$SUPABASE_DB_PASSWORD" ] || { echo "::error::Add the SUPABASE_DB_PASSWORD repository secret first (docs/deploy.md, step 3)."; exit 1; }
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Connect to the Supabase project
+        run: npx supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Create tables, access rules and the every-minute schedule
+        # Migrations only. Never --include-seed: seed.sql holds local-only values.
+        run: npx supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
+
+      - name: Create push keys and the dispatch secret (first run only)
+        id: keys
+        run: |
+          if npx supabase secrets list --project-ref "$PROJECT_REF" | grep -q VAPID_PRIVATE_KEY; then
+            echo "Push keys already exist; keeping them so existing devices keep working."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          keys=$(node scripts/vapid-keys.mjs)
+          public=$(printf '%s\n' "$keys" | sed -n 's/^VAPID_PUBLIC_KEY=//p')
+          private=$(printf '%s\n' "$keys" | sed -n 's/^VAPID_PRIVATE_KEY=//p')
+          secret=$(openssl rand -hex 32)
+          echo "::add-mask::$private"
+          echo "::add-mask::$secret"
+
+          npx supabase secrets set --project-ref "$PROJECT_REF" \
+            "MEMOINDER_DISPATCH_SECRET=$secret" \
+            "VAPID_PUBLIC_KEY=$public" \
+            "VAPID_PRIVATE_KEY=$private" \
+            "VAPID_SUBJECT=https://github.com/hasanawas/Memoinder"
+
+          # The database's schedule needs the same secret and the function's address.
+          cat > "$RUNNER_TEMP/vault.sql" <<SQL
+          do \$\$
+          declare v_id uuid;
+          begin
+            select id into v_id from vault.secrets where name = 'memoinder_dispatch_url';
+            if v_id is null then
+              perform vault.create_secret('https://$PROJECT_REF.supabase.co/functions/v1/dispatch-reminders', 'memoinder_dispatch_url');
+            else
+              perform vault.update_secret(v_id, 'https://$PROJECT_REF.supabase.co/functions/v1/dispatch-reminders');
+            end if;
+            select id into v_id from vault.secrets where name = 'memoinder_dispatch_secret';
+            if v_id is null then
+              perform vault.create_secret('$secret', 'memoinder_dispatch_secret');
+            else
+              perform vault.update_secret(v_id, '$secret');
+            end if;
+          end
+          \$\$;
+          SQL
+          npx supabase db query --linked -f "$RUNNER_TEMP/vault.sql" > /dev/null
+          rm "$RUNNER_TEMP/vault.sql"
+
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "public=$public" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the sending function
+        # Bundled with Docker, which GitHub's runners already have.
+        run: npx supabase functions deploy dispatch-reminders --project-ref "$PROJECT_REF"
+
+      - name: Show the public key
+        if: steps.keys.outputs.created == 'true'
+        run: |
+          {
+            echo "## Public push key"
+            echo
+            echo "Send this to Claude (it is meant to be public):"
+            echo
+            echo '```'
+            echo "${{ steps.keys.outputs.public }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
