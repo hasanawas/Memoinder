@@ -43,11 +43,13 @@ export async function getReminder(id: string): Promise<ReminderRow | null> {
   return data as ReminderRow | null;
 }
 
-export async function insertReminder(row: ReminderRowInput): Promise<void> {
+/** Returns the new reminder's id. */
+export async function insertReminder(row: ReminderRowInput): Promise<string> {
   const { supabase } = await requireUser();
-  const { error } = await supabase.from("reminders").insert(row);
+  const { data, error } = await supabase.from("reminders").insert(row).select("id").single();
   if (error) throw new Error(`Could not save reminder: ${error.message}`);
   remindersChanged();
+  return data.id as string;
 }
 
 /** Returns false when no row was changed (missing, or not this user's). */
