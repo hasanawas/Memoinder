@@ -7,7 +7,7 @@ export const site = {
 export const phases = [
   { id: 0, title: "Project scaffold, tests and CI", done: true },
   { id: 1, title: "Reminder engine: time zones and recurrence", done: true },
-  { id: 2, title: "Database, sign-in and reminder editing", done: false },
+  { id: 2, title: "Database, sign-in and reminder editing", done: true },
   { id: 3, title: "Chat with a local AI model", done: false },
   { id: 4, title: "Notifications with the browser closed", done: false },
   { id: 5, title: "Free deployment", done: false },

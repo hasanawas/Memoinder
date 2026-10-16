@@ -7,7 +7,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
-  use: { baseURL: `http://localhost:${port}`, trace: "on-first-retry" },
+  // A fixed browser time zone keeps "default zone" assertions deterministic.
+  use: { baseURL: `http://localhost:${port}`, trace: "on-first-retry", timezoneId: "Asia/Karachi" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   // Tests run against a production build, the same thing Vercel serves.
   webServer: {
