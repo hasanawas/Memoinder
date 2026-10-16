@@ -1,35 +1,81 @@
 @import "tailwindcss";
 
+/* Warm, calm palette in the spirit of chat assistants: off-white paper,
+   soft sidebar, one terracotta accent. Every colour is a token so light and
+   dark mode stay in step. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --sidebar: #f2f0e8;
+  --line: #e4e0d5;
+  --ink: #1f1e1b;
+  --muted: #6b675e;
+  --accent: #c2603e;
+  --accent-hover: #a9502f;
+  --accent-ink: #ffffff;
+  --bubble: #ece8dd;
+  --danger: #b42318;
+  --ok: #2f7d4f;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #262624;
+    --surface: #30302e;
+    --sidebar: #1f1e1c;
+    --line: #3e3d39;
+    --ink: #ece9e1;
+    --muted: #a6a297;
+    --accent: #d97757;
+    --accent-hover: #e48b6d;
+    --accent-ink: #1f1e1b;
+    --bubble: #3a3936;
+    --danger: #f97066;
+    --ok: #6fcf97;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-bubble: var(--bubble);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  /* Kept for older class names. */
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 /* Small shared building blocks, so pages stay readable. */
 @utility field {
-  @apply rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700;
+  @apply rounded-xl border border-line bg-surface px-3 py-2 text-ink outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20;
 }
 @utility btn-primary {
-  @apply rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink shadow-sm transition hover:bg-accent-hover disabled:opacity-50;
 }
 @utility btn-secondary {
-  @apply rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-sm font-medium text-ink transition hover:bg-bubble disabled:opacity-50;
+}
+@utility btn-ghost {
+  @apply inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-bubble disabled:opacity-50;
+}
+@utility card {
+  @apply rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)];
 }

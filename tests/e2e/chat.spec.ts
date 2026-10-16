@@ -16,8 +16,8 @@ test.describe("chat with the built-in parser", () => {
   test.beforeEach(async ({ page }) => {
     // No Ollama: every request to it fails, as on a phone.
     await page.route("http://127.0.0.1:11434/**", (route) => route.abort());
+    // Signing in lands on the chat.
     await signIn(page);
-    await page.getByRole("main").getByRole("link", { name: "Chat" }).click();
     await expect(page.getByRole("main").getByRole("status")).toHaveText(/using the built-in parser/);
   });
 
@@ -36,7 +36,7 @@ test.describe("chat with the built-in parser", () => {
     await expect(conversation(page)).toContainText("Tomorrow");
     await expect(conversation(page).getByRole("listitem").last()).toContainText("17:00 Call mum");
 
-    await go(page, "/reminders/");
+    await go(page, "/reminders/list/");
     await expect(page.getByRole("main").getByRole("listitem").filter({ hasText: "Call mum" })).toBeVisible();
   });
 
@@ -59,7 +59,7 @@ test.describe("chat with the built-in parser", () => {
     await expect(conversation(page)).toContainText("Create this reminder?");
     await conversation(page).getByRole("button", { name: "Cancel" }).click();
     await expect(conversation(page)).toContainText("Cancelled. Nothing was changed.");
-    await go(page, "/reminders/");
+    await go(page, "/reminders/list/");
     await expect(page.getByRole("main").getByText("No reminders yet")).toBeVisible();
   });
 });
@@ -102,7 +102,7 @@ test.describe("chat with a local model", () => {
       }),
     );
     await signIn(page);
-    await go(page, "/reminders/chat/");
+    await go(page, "/reminders/");
     await expect(page.getByRole("main").getByRole("status")).toHaveText("Local model: llama3.2:3b");
     await say(page, "rent is due next friday, ping me at 10");
     await expect(conversation(page)).toContainText("Pay rent");
@@ -113,7 +113,7 @@ test.describe("chat with a local model", () => {
   test("falls back to the built-in parser when the model answers nonsense", async ({ page }) => {
     await fakeOllama(page, () => "Sure! I'll remind you.");
     await signIn(page);
-    await go(page, "/reminders/chat/");
+    await go(page, "/reminders/");
     await expect(page.getByRole("main").getByRole("status")).toHaveText("Local model: llama3.2:3b");
     await say(page, "remind me to water plants tomorrow at 6pm");
     await expect(conversation(page)).toContainText("Water plants");

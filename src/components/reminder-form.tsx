@@ -36,7 +36,7 @@ export function ReminderForm({
   const [state, formAction, pending] = useActionState(action, { attempt: 0 });
   const router = useRouter();
   useEffect(() => {
-    if (state.saved) router.push("/reminders/");
+    if (state.saved) router.push("/reminders/list/");
   }, [state.saved, router]);
   // React resets a form after its action runs; re-mounting with the submitted
   // values keeps what the user typed when there are errors to fix.
@@ -77,7 +77,7 @@ function Fields({
 
   const err = (k: keyof FormValues) =>
     errors[k] ? (
-      <span role="alert" className="text-sm text-red-700 dark:text-red-400">
+      <span role="alert" className="text-sm text-danger">
         {errors[k]}
       </span>
     ) : null;
@@ -124,7 +124,7 @@ function Fields({
         {err("timeZone")}
       </div>
 
-      <fieldset className="flex flex-col gap-3 rounded-md border border-zinc-200 p-4 dark:border-zinc-800">
+      <fieldset className="flex flex-col gap-3 rounded-xl border border-line p-4">
         <legend className="px-1 text-sm font-medium">Repeat</legend>
         <div className="flex flex-wrap items-center gap-3">
           <select
@@ -163,11 +163,11 @@ function Fields({
           <div className="flex flex-wrap gap-3" role="group" aria-label="Weekdays">
             {WEEKDAY_LABELS.map(([code, label]) => (
               <label key={code} className="flex items-center gap-1 text-sm">
-                <input type="checkbox" name="weekdays" value={code} defaultChecked={values.weekdays.includes(code)} />
+                <input type="checkbox" className="accent-[var(--accent)]" name="weekdays" value={code} defaultChecked={values.weekdays.includes(code)} />
                 {label}
               </label>
             ))}
-            <span className="w-full text-xs text-zinc-500">None ticked means the start date&apos;s weekday.</span>
+            <span className="w-full text-xs text-muted">None ticked means the start date&apos;s weekday.</span>
           </div>
         )}
 
@@ -205,7 +205,7 @@ function Fields({
       </fieldset>
 
       {errors.form && (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-danger">
           {errors.form}
         </p>
       )}

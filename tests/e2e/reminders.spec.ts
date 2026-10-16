@@ -40,6 +40,7 @@ test("the emailed link signs you in too", async ({ page }) => {
 test("create, list, edit and delete a reminder", async ({ page }) => {
   const email = await signIn(page);
   await expect(page.getByRole("banner").getByText(email)).toBeVisible();
+  await page.getByRole("complementary", { name: "Sidebar" }).getByRole("link", { name: "Reminders" }).click();
   await expect(page.getByRole("main").getByText("No reminders yet")).toBeVisible();
 
   // The browser runs in Asia/Karachi (playwright.config.ts), so that is the default zone.
@@ -52,7 +53,7 @@ test("create, list, edit and delete a reminder", async ({ page }) => {
   await page.getByRole("main").getByLabel("Time", { exact: true }).fill("09:00");
   await page.getByRole("main").getByRole("button", { name: "Save reminder" }).click();
 
-  await expect(page).toHaveURL(/\/reminders\/$/);
+  await expect(page).toHaveURL(/\/reminders\/list\/$/);
   const item = page.getByRole("main").getByRole("listitem").filter({ hasText: "Call the bank" });
   await expect(item).toContainText("Ask about fees");
   await expect(item).toContainText(`Next: ${day.toFormat("ccc d LLL yyyy")}, 09:00`);
@@ -67,7 +68,7 @@ test("create, list, edit and delete a reminder", async ({ page }) => {
   await page.getByRole("main").getByLabel("Wed").check();
   await page.getByRole("main").getByRole("button", { name: "Save changes" }).click();
 
-  await expect(page).toHaveURL(/\/reminders\/$/);
+  await expect(page).toHaveURL(/\/reminders\/list\/$/);
   const edited = page.getByRole("main").getByRole("listitem").filter({ hasText: "Call the bank (weekly)" });
   await expect(edited).toContainText("Every week on Mon, Wed at 09:00 (Asia/Karachi)");
   await expect(edited).toContainText("then");

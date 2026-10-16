@@ -14,7 +14,7 @@ export function EditForm() {
   // Postgres rejects a malformed uuid with an error; treat it as not found.
   const row = useLoad(() => (UUID.test(id) ? getReminder(id) : Promise.resolve(null)));
 
-  if (row.loading) return <p className="text-zinc-500">Loading…</p>;
+  if (row.loading) return <p className="text-muted">Loading…</p>;
   if (row.error) return <p role="alert">{row.error}</p>;
   if (!row.data) return <p>That reminder does not exist (or is not yours).</p>;
   return <ReminderForm action={updateReminderAction.bind(null, id)} initial={rowToFormValues(row.data)} submitLabel="Save changes" />;

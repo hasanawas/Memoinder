@@ -57,7 +57,7 @@ export function LoginForm() {
   }
 
   const alert = error && (
-    <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+    <p role="alert" className="text-sm text-danger">
       {error}
     </p>
   );
@@ -70,18 +70,16 @@ export function LoginForm() {
           <input name="email" type="email" required autoComplete="email" defaultValue={email} className="field" />
         </label>
         {alert}
-        <div>
-          <button disabled={pending} className="btn-primary">
-            Email me a sign-in link
-          </button>
-        </div>
+        <button disabled={pending} className="btn-primary w-full py-2.5">
+          Email me a sign-in link
+        </button>
       </form>
     );
   }
 
   return (
     <form action={verify} className="flex flex-col gap-4">
-      <p role="status" className="text-sm text-green-700 dark:text-green-400">
+      <p role="status" className="text-sm text-ok">
         We sent a sign-in email to {email}. Open its link in this browser. If the email shows a 6-digit code, you can type it here instead.
       </p>
       <label className="flex flex-col gap-1">
@@ -97,8 +95,8 @@ export function LoginForm() {
         />
       </label>
       {alert}
-      <div className="flex gap-3">
-        <button disabled={pending} className="btn-primary">
+      <div className="flex flex-wrap gap-3">
+        <button disabled={pending} className="btn-primary flex-1">
           Sign in
         </button>
         <button type="button" className="btn-secondary" onClick={() => setStep("email")}>
