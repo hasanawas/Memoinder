@@ -133,7 +133,7 @@ describe("dispatching against the real database", () => {
 
     const mine = received.filter((r) => r.payload.reminderId === reminderId);
     expect(mine.map((r) => r.url).sort()).toEqual([phoneUrl, laptopUrl].sort());
-    expect(mine[0].payload).toMatchObject({ v: 1, title: "Water the plants", url: "/reminders" });
+    expect(mine[0].payload).toMatchObject({ v: 1, title: "Water the plants", url: "reminders/" });
 
     const { data: rows } = await user.client.from("deliveries").select("id,status,lateness,subscription_id").eq("reminder_id", reminderId);
     expect(rows).toHaveLength(2);

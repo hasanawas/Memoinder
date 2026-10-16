@@ -1,6 +1,6 @@
 # Database and sign-in (Phase 2)
 
-Memoinder stores reminders in Supabase Postgres and signs you in with Supabase Auth (email + password). Both run on the Supabase **Free** plan when hosted, and entirely on your own computer during development.
+Memoinder stores reminders in Supabase Postgres and signs you in with Supabase Auth (an emailed 6-digit code). Both run on the Supabase **Free** plan when hosted, and entirely on your own computer during development.
 
 ## The `reminders` table
 

@@ -320,7 +320,7 @@ function Reply({
               ))}
             </ul>
           )}
-          <Link href="/reminders" className="text-sm underline">
+          <Link href="/reminders/" className="text-sm underline">
             Open the full list
           </Link>
         </>

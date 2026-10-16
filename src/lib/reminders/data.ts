@@ -1,22 +1,25 @@
-import "server-only";
-import { redirect } from "next/navigation";
-import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { supabase as client } from "@/lib/supabase/client";
 import type { ReminderRow, ReminderRowInput } from "./form";
 
-// Data access layer: the only place that reads or writes reminders. Every
-// function re-checks the session, and the database's Row Level Security
-// policies limit each query to the signed-in user's own rows.
+// Data access layer: the only place that reads or writes reminders. It runs
+// in the browser, so it is a convenience, not a security boundary: the
+// database's Row Level Security policies and checks are what limit each query
+// to the signed-in user's own, valid rows.
+
+export class NotSignedInError extends Error {
+  constructor() {
+    super("You are signed out. Sign in again to continue.");
+  }
+}
 
 export async function requireUser() {
-  // Checking the session compares token expiry with the clock, and pages use
-  // the current time too, so this must run per request, never at build time.
-  await connection();
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
-  if (!claims?.sub) redirect("/login");
-  return { supabase, userId: claims.sub, email: (claims.email as string | undefined) ?? "" };
+  const supabase = client();
+  // getSession() reads the stored session (refreshing it if needed); the
+  // database still verifies the token on every request.
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
+  if (!user) throw new NotSignedInError();
+  return { supabase, userId: user.id, email: user.email ?? "" };
 }
 
 const COLUMNS = "id,title,notes,start_local,time_zone,recurrence,rrule,next_fire_at,status,created_at,updated_at";

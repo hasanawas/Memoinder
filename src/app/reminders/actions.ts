@@ -1,14 +1,15 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { draftToRow, parseForm, readForm, type FieldErrors, type FormValues } from "@/lib/reminders/form";
 import { deleteReminder, insertReminder, updateReminder } from "@/lib/reminders/data";
+
+// Form handlers. They run in the browser; the database re-checks everything
+// that matters (ownership, valid time zone, sizes) on its side.
 
 export interface ReminderFormState {
   errors?: FieldErrors;
   values?: FormValues;
   attempt: number;
+  /** Set when the reminder was saved and the form can go back to the list. */
+  saved?: boolean;
 }
 
 async function save(prev: ReminderFormState, fd: FormData, id: string | null): Promise<ReminderFormState> {
@@ -30,8 +31,7 @@ async function save(prev: ReminderFormState, fd: FormData, id: string | null): P
   } catch (e) {
     return fail({ form: e instanceof Error ? e.message : "Could not save the reminder." });
   }
-  revalidatePath("/reminders");
-  redirect("/reminders");
+  return { values, attempt: prev.attempt, saved: true };
 }
 
 export async function createReminderAction(prev: ReminderFormState, fd: FormData) {
@@ -44,5 +44,4 @@ export async function updateReminderAction(id: string, prev: ReminderFormState, 
 
 export async function deleteReminderAction(id: string) {
   await deleteReminder(id);
-  revalidatePath("/reminders");
 }

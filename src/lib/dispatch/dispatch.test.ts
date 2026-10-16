@@ -57,7 +57,7 @@ describe("dispatchDue", () => {
     const s = await dispatchDue({ store, send, now: at("2026-10-16T04:00:30Z") });
 
     expect(calls.map((c) => c.target.endpoint)).toEqual(["https://push.example/s1", "https://push.example/s2"]);
-    expect(calls[0].payload).toMatchObject({ v: 1, title: "Take medicine", url: "/reminders", reminderId: reminder().id });
+    expect(calls[0].payload).toMatchObject({ v: 1, title: "Take medicine", url: "reminders/", reminderId: reminder().id });
     expect(calls[0].payload.body).toContain("09:00");
     expect(calls[0].topic).toBe("11111111111141118111111111111111");
     expect(deliveries.map((d) => [d.subscription_id, d.status, d.lateness])).toEqual([

@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { DateTime, IANAZone } from "luxon";
 import { z } from "zod";
 import { describeSchedule, scheduleSchema } from "@/lib/engine";
@@ -16,9 +13,9 @@ import {
 import { deleteReminder, getReminder, insertReminder, listReminders, updateReminder } from "@/lib/reminders/data";
 import { draftToRow, rowToSchedule, type ReminderRow } from "@/lib/reminders/form";
 
-// Server side of the chat. The browser sends an Intent (from the local model
-// or the rule parser); everything here re-validates it, because anything from
-// the browser can be tampered with. Nothing is saved until the user confirms.
+// Turns a chat Intent (from the local model or the rule parser) into a reply,
+// and saves only after the user confirms. Model output is untrusted, so it is
+// re-validated here; the database checks ownership and sizes again on save.
 
 export interface ListItem {
   id: string;
@@ -132,7 +129,6 @@ async function saveDraft(rawDraft: unknown, id: string | null): Promise<ConfirmR
   } else {
     await insertReminder(built.row);
   }
-  revalidatePath("/reminders");
   return { ok: true, text: `Saved "${d.data.title}". ${describeSchedule(d.data.schedule)}.` };
 }
 
@@ -150,6 +146,5 @@ export async function confirmDelete(id: string): Promise<ConfirmResult> {
   const row = await getReminder(id);
   if (!row) return { ok: false, text: "That reminder no longer exists." };
   await deleteReminder(id);
-  revalidatePath("/reminders");
   return { ok: true, text: `Deleted "${row.title}".` };
 }

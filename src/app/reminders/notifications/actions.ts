@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { DateTime, IANAZone } from "luxon";
 import { z } from "zod";
 import { removeSubscription, saveSubscription } from "@/lib/push/data";
@@ -22,7 +19,6 @@ export async function saveDeviceAction(subscription: unknown, userAgent: string)
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not save this device." };
   }
-  revalidatePath("/reminders");
   return { ok: true };
 }
 
@@ -32,7 +28,6 @@ export async function removeDeviceAction(endpoint: string): Promise<ActionResult
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not remove this device." };
   }
-  revalidatePath("/reminders");
   return { ok: true };
 }
 
@@ -54,6 +49,5 @@ export async function sendTestAction(timeZone: string): Promise<ActionResult> {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not create the test reminder." };
   }
-  revalidatePath("/reminders");
   return { ok: true };
 }

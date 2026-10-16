@@ -42,7 +42,7 @@ Apple Silicon Macs and computers with a recent GPU are much faster.
 1. Install Ollama from ollama.com (Windows, macOS or Linux). It is free and open source.
 2. Download the model: `ollama pull llama3.2:3b`
 3. Let Memoinder's page talk to it. By default Ollama only accepts browser requests from `127.0.0.1` pages, so set `OLLAMA_ORIGINS` to the addresses you open Memoinder at, then restart Ollama:
-   - Value: `http://localhost:3000,http://127.0.0.1:3000` (add your deployed address in Phase 5, e.g. `https://your-app.vercel.app`)
+   - Value: `http://localhost:3000,http://127.0.0.1:3000` (for the deployed site also add `https://hasanawas.github.io`)
    - **macOS app:** `launchctl setenv OLLAMA_ORIGINS "http://localhost:3000,http://127.0.0.1:3000"`, then quit and reopen Ollama
    - **Linux (systemd):** `systemctl edit ollama.service`, add `Environment="OLLAMA_ORIGINS=http://localhost:3000,http://127.0.0.1:3000"` under `[Service]`, then `systemctl daemon-reload && systemctl restart ollama`
    - **Windows:** quit Ollama, add `OLLAMA_ORIGINS` under "Edit environment variables for your account", then start Ollama again
