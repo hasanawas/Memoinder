@@ -3,12 +3,12 @@
 A personal AI reminder assistant built entirely on free tiers and open-source software. It is also a learning project for full-stack development.
 
 - Architecture, verified free-tier limits and the $0 cost conditions: [docs/architecture.md](docs/architecture.md)
-- Current phase: **0, project scaffold** (no features yet)
+- Current phase: **1, reminder engine** (time zones, daylight saving, repeats; no UI yet). How it works: [docs/engine.md](docs/engine.md)
 
 ## Requirements
 
 - Node.js 20.9 or newer (22 recommended) and npm
-- No accounts or API keys are needed for Phase 0
+- No accounts or API keys are needed yet
 
 ## Run it locally
 
@@ -35,6 +35,7 @@ GitHub Actions runs all four checks on every pull request (`.github/workflows/ci
 ```
 src/app/        Next.js App Router pages
 src/lib/        Plain TypeScript logic (unit-tested)
+src/lib/engine/ Reminder engine: schedules, repeats, due rules
 tests/e2e/      Playwright browser tests
 docs/           Architecture and decisions
 ```
