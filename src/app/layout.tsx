@@ -5,6 +5,9 @@ import { site } from "@/lib/site";
 export const metadata: Metadata = {
   title: site.name,
   description: site.tagline,
+  // iPhone/iPad use these when Memoinder is added to the Home Screen.
+  appleWebApp: { capable: true, title: site.name },
+  icons: { apple: "/icon-192.png" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
