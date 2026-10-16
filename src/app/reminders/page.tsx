@@ -14,9 +14,14 @@ export default function RemindersPage() {
     <main className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Upcoming</h1>
-        <Link href="/reminders/new" className="btn-primary">
-          New reminder
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/reminders/chat" className="btn-secondary">
+            Chat
+          </Link>
+          <Link href="/reminders/new" className="btn-primary">
+            New reminder
+          </Link>
+        </div>
       </div>
       <Suspense fallback={<p className="text-zinc-500">Loading reminders…</p>}>
         <ReminderList />

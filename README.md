@@ -3,8 +3,8 @@
 A personal AI reminder assistant built entirely on free tiers and open-source software. It is also a learning project for full-stack development.
 
 - Architecture, verified free-tier limits and the $0 cost conditions: [docs/architecture.md](docs/architecture.md)
-- Current phase: **2, database and sign-in**. You can sign in and create, list, edit and delete reminders (including repeats). Notifications come in Phase 4.
-- How the pieces work: [docs/engine.md](docs/engine.md) (dates and repeats), [docs/database.md](docs/database.md) (schema, access rules, Supabase setup)
+- Current phase: **3, chat**. You can sign in, create reminders by chatting or with a form, and list, edit, move and delete them (including repeats). An optional local AI model (Ollama) understands looser phrasing. Notifications come in Phase 4.
+- How the pieces work: [docs/engine.md](docs/engine.md) (dates and repeats), [docs/database.md](docs/database.md) (schema, access rules, Supabase setup), [docs/local-ai.md](docs/local-ai.md) (chat, Ollama set-up, accuracy)
 
 ## Requirements
 
@@ -32,6 +32,7 @@ Create an account on the sign-in page with any email; locally no email is sent.
 | `npm run lint` | ESLint with the Next.js rules |
 | `npm test` | Unit tests with Vitest (`src/**/*.test.ts`) |
 | `npm run test:db` | Access-rule tests against the local Supabase (`tests/db`); needs `npx supabase start` |
+| `npm run eval:ai` | Scores the chat parsers on sample phrases; add `OLLAMA_MODEL=llama3.2:3b` to include your local model |
 | `npm run test:e2e` | Builds the app, starts it on port 3100 and runs Playwright browser tests (`tests/e2e`); needs local Supabase |
 
 The first time you run end-to-end tests on your own computer, install the browser once with `npx playwright install chromium`.
@@ -46,6 +47,8 @@ src/proxy.ts    Refreshes the session and guards signed-in pages
 src/lib/        Plain TypeScript logic (unit-tested)
 src/lib/engine/ Reminder engine: schedules, repeats, due rules
 src/lib/reminders/ Form parsing and the data access layer
+src/lib/ai/      Chat providers: built-in parser and Ollama
+src/lib/chat/    Turns chat intents into exact schedules (no AI)
 supabase/       Local Supabase config and SQL migrations
 tests/db/       Database access-rule tests
 tests/e2e/      Playwright browser tests
