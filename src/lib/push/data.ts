@@ -1,4 +1,3 @@
-import "server-only";
 import { requireUser } from "@/lib/reminders/data";
 
 // Data access for devices (push subscriptions) and delivery history. Row

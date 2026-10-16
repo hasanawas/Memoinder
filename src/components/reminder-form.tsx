@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState, useSyncExternalStore } from "react";
+import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import type { FormValues } from "@/lib/reminders/form";
 import type { ReminderFormState } from "@/app/reminders/actions";
 
@@ -33,6 +34,10 @@ export function ReminderForm({
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, { attempt: 0 });
+  const router = useRouter();
+  useEffect(() => {
+    if (state.saved) router.push("/reminders/");
+  }, [state.saved, router]);
   // React resets a form after its action runs; re-mounting with the submitted
   // values keeps what the user typed when there are errors to fix.
   return (
@@ -41,7 +46,7 @@ export function ReminderForm({
       values={state.values ?? initial}
       errors={state.errors ?? {}}
       formAction={formAction}
-      pending={pending}
+      pending={pending || Boolean(state.saved)}
       submitLabel={submitLabel}
     />
   );

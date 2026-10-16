@@ -173,7 +173,7 @@ export async function dispatchDue(deps: DispatchDeps): Promise<DispatchSummary> 
             deliveryId: id,
             ackToken,
             reminderId: r.id,
-            url: "/reminders",
+            url: "reminders/",
           };
           const result = await deps.send({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(payload), topic);
           rows.push({

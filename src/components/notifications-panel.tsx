@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { removeDeviceAction, saveDeviceAction, sendTestAction } from "@/app/reminders/notifications/actions";
+import { withBase } from "@/lib/paths";
+import { supabaseEnv } from "@/lib/supabase/env";
 
 // Lets you turn notifications on for this browser/device. Once on, reminders
 // arrive through the browser's push service even with every Memoinder tab
@@ -31,7 +33,11 @@ function isStandalone() {
 }
 
 async function registration() {
-  return navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
+  // The Service Worker is a plain static file, so it gets the (public)
+  // Supabase address and key it needs for confirmations through its URL.
+  const { url, key } = supabaseEnv();
+  const params = new URLSearchParams({ supabaseUrl: url, supabaseKey: key });
+  return navigator.serviceWorker.register(withBase(`/sw.js?${params}`), { scope: withBase("/"), updateViaCache: "none" });
 }
 
 async function detect(vapidPublicKey: string | null): Promise<State> {
@@ -51,7 +57,16 @@ async function detect(vapidPublicKey: string | null): Promise<State> {
   return sub && Notification.permission === "granted" ? { kind: "on", endpoint: sub.endpoint } : { kind: "off" };
 }
 
-export function NotificationsPanel({ vapidPublicKey, deviceCount }: { vapidPublicKey: string | null; deviceCount: number }) {
+export function NotificationsPanel({
+  vapidPublicKey,
+  deviceCount,
+  onChange,
+}: {
+  vapidPublicKey: string | null;
+  deviceCount: number;
+  /** Called after this device was added or removed, or a test was created. */
+  onChange?: () => void;
+}) {
   const [state, setState] = useState<State>({ kind: "checking" });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -89,6 +104,7 @@ export function NotificationsPanel({ vapidPublicKey, deviceCount }: { vapidPubli
       }
       setState({ kind: "on", endpoint: sub.endpoint });
       setMessage("Notifications are on for this device.");
+      onChange?.();
     } catch (e) {
       setMessage(`Could not turn on notifications: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -109,6 +125,7 @@ export function NotificationsPanel({ vapidPublicKey, deviceCount }: { vapidPubli
       }
       setState({ kind: "off" });
       setMessage("Notifications are off for this device.");
+      onChange?.();
     } finally {
       setBusy(false);
     }
@@ -119,6 +136,7 @@ export function NotificationsPanel({ vapidPublicKey, deviceCount }: { vapidPubli
     setMessage(null);
     const result = await sendTestAction(Intl.DateTimeFormat().resolvedOptions().timeZone);
     setBusy(false);
+    if (result.ok) onChange?.();
     setMessage(
       result.ok
         ? "Test reminder created. It should arrive within about a minute, even if you close this tab. Check its status under History."

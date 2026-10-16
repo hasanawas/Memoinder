@@ -1,0 +1,53 @@
+name: Deploy to GitHub Pages
+
+# Builds the static site and publishes it to https://hasanawas.github.io/Memoinder/.
+# GitHub Pages and Actions are free for public repositories.
+# One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the static site
+        run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /Memoinder
+          # All three are public by design and end up in the browser anyway.
+          # Row Level Security, not secrecy of these values, protects the data.
+          NEXT_PUBLIC_SUPABASE_URL: https://qsswfleiurvwlumudwia.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_UrQJfeEWDr-GGnAE0okfWA_FWdLmceq
+          # Filled in once the VAPID keys exist (docs/deploy.md, step 3).
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ""
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

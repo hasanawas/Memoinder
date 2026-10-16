@@ -3,6 +3,7 @@ import { dispatchDue, type PushPayload } from "../../src/lib/dispatch/dispatch.t
 import { postgrestStore } from "../../src/lib/dispatch/postgrest-store.ts";
 import { generateVapidKeys, sendPush } from "../../src/lib/push/webpush.ts";
 import { fakeBrowser } from "../support/push-receiver.ts";
+import { go, latestCode, signIn } from "../support/e2e.ts";
 import { anonClient, apiUrl, awayFromMinuteBoundary, serviceRoleKey } from "../support/local-supabase.ts";
 
 // The device half, in a real Chromium with the Memoinder tab CLOSED:
@@ -26,18 +27,14 @@ test("a reminder is shown with the tab closed, and the history says so", async (
   // Sign up and open the reminders page, which installs the Service Worker.
   const email = `push-${crypto.randomUUID()}@example.test`;
   const page = await context.newPage();
-  await page.goto("/login");
-  const main = page.getByRole("main");
-  await main.getByLabel("Email").fill(email);
-  await main.getByLabel("Password").fill("correct-horse-battery");
-  await main.getByRole("button", { name: "Create account" }).click();
-  await page.waitForURL("**/reminders");
+  await signIn(page, email);
   await expect(page.getByRole("region", { name: "Notifications" })).toBeVisible();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
 
   // The same account, through the API: a device and a reminder due now.
   const api = anonClient();
-  await api.auth.signInWithPassword({ email, password: "correct-horse-battery" });
+  await api.auth.signInWithOtp({ email });
+  expect((await api.auth.verifyOtp({ email, token: await latestCode(email), type: "email" })).error).toBeNull();
   const device = await fakeBrowser();
   const endpoint = `https://push.example.test/${crypto.randomUUID()}`;
   expect((await api.rpc("save_push_subscription", { p_endpoint: endpoint, p_p256dh: device.keys.p256dh, p_auth: device.keys.auth })).error).toBeNull();
@@ -81,26 +78,21 @@ test("a reminder is shown with the tab closed, and the history says so", async (
 
   // The notification is on screen even though no Memoinder tab was open.
   const check = await context.newPage();
-  await check.goto("/login");
+  await go(check, "/");
   await expect
     .poll(() => check.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => `${n.title}|${n.body}`)))
     .toEqual([expect.stringMatching(/^Call the bank\|Ask about the card\n\w{3} \d{1,2} \w{3}, \d\d:\d\d$/)]);
 
   // The Service Worker told the server, so the history can honestly say "shown".
-  await check.goto("/reminders/history");
+  await go(check, "/reminders/history/");
   await expect(check.getByRole("main").getByText("Shown on your device")).toBeVisible();
-  await check.goto("/reminders");
+  await go(check, "/reminders/");
   await expect(check.getByRole("main").getByTestId("last-delivery")).toContainText("Shown on your device");
   await context.close();
 });
 
 test("the notifications panel offers to turn notifications on", async ({ page }) => {
-  await page.goto("/login");
-  const main = page.getByRole("main");
-  await main.getByLabel("Email").fill(`panel-${crypto.randomUUID()}@example.test`);
-  await main.getByLabel("Password").fill("correct-horse-battery");
-  await main.getByRole("button", { name: "Create account" }).click();
-  await page.waitForURL("**/reminders");
+  await signIn(page);
   const panel = page.getByRole("region", { name: "Notifications" });
   await expect(panel.getByRole("button", { name: "Turn on notifications" })).toBeVisible();
   await expect(panel.getByText("No devices have notifications on.")).toBeVisible();

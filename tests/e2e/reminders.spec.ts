@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { DateTime } from "luxon";
+import { go, latestEmailLink, signIn } from "../support/e2e.ts";
 
 // Full journey against the real app and local Supabase: sign up, create,
 // see it listed with the right next time, edit it into a repeat, delete it.
@@ -7,32 +8,37 @@ import { DateTime } from "luxon";
 // Next.js keeps recently visited pages mounted but hidden, so lookups go
 // through getByRole("main"), which only matches the visible page.
 
-async function signUp(page: Page) {
-  const email = `e2e-${crypto.randomUUID()}@example.test`;
-  await page.goto("/login");
-  await page.getByRole("main").getByLabel("Email").fill(email);
-  await page.getByRole("main").getByLabel("Password").fill("correct-horse-battery");
-  await page.getByRole("main").getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/reminders$/);
-  return email;
-}
 
 test("signed-out visitors are sent to the sign-in page", async ({ page }) => {
-  await page.goto("/reminders");
-  await expect(page).toHaveURL(/\/login$/);
+  await go(page, "/reminders/");
+  await expect(page).toHaveURL(/\/login\/$/);
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 });
 
-test("wrong password shows an error", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByRole("main").getByLabel("Email").fill("nobody@example.test");
-  await page.getByRole("main").getByLabel("Password").fill("wrong-password");
-  await page.getByRole("main").getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("main").getByText("Invalid login credentials")).toBeVisible();
+test("a wrong sign-in code shows an error", async ({ page }) => {
+  await go(page, "/login/");
+  const main = page.getByRole("main");
+  await main.getByLabel("Email").fill(`wrong-${crypto.randomUUID()}@example.test`);
+  await main.getByRole("button", { name: "Email me a sign-in code" }).click();
+  await main.getByLabel("Code").fill("000000");
+  await main.getByRole("button", { name: "Sign in" }).click();
+  await expect(main.getByRole("alert")).toContainText(/expired or is invalid|invalid/i);
+});
+
+test("the emailed link signs you in too", async ({ page }) => {
+  const email = `link-${crypto.randomUUID()}@example.test`;
+  await go(page, "/login/");
+  const main = page.getByRole("main");
+  await main.getByLabel("Email").fill(email);
+  await main.getByRole("button", { name: "Email me a sign-in code" }).click();
+  await expect(main.getByRole("status")).toContainText(email);
+  await page.goto(await latestEmailLink(email));
+  await expect(page).toHaveURL(/\/reminders\/$/);
+  await expect(page.getByText(email)).toBeVisible();
 });
 
 test("create, list, edit and delete a reminder", async ({ page }) => {
-  const email = await signUp(page);
+  const email = await signIn(page);
   await expect(page.getByRole("banner").getByText(email)).toBeVisible();
   await expect(page.getByRole("main").getByText("No reminders yet")).toBeVisible();
 
@@ -46,7 +52,7 @@ test("create, list, edit and delete a reminder", async ({ page }) => {
   await page.getByRole("main").getByLabel("Time", { exact: true }).fill("09:00");
   await page.getByRole("main").getByRole("button", { name: "Save reminder" }).click();
 
-  await expect(page).toHaveURL(/\/reminders$/);
+  await expect(page).toHaveURL(/\/reminders\/$/);
   const item = page.getByRole("main").getByRole("listitem").filter({ hasText: "Call the bank" });
   await expect(item).toContainText("Ask about fees");
   await expect(item).toContainText(`Next: ${day.toFormat("ccc d LLL yyyy")}, 09:00`);
@@ -61,7 +67,7 @@ test("create, list, edit and delete a reminder", async ({ page }) => {
   await page.getByRole("main").getByLabel("Wed").check();
   await page.getByRole("main").getByRole("button", { name: "Save changes" }).click();
 
-  await expect(page).toHaveURL(/\/reminders$/);
+  await expect(page).toHaveURL(/\/reminders\/$/);
   const edited = page.getByRole("main").getByRole("listitem").filter({ hasText: "Call the bank (weekly)" });
   await expect(edited).toContainText("Every week on Mon, Wed at 09:00 (Asia/Karachi)");
   await expect(edited).toContainText("then");
@@ -71,8 +77,8 @@ test("create, list, edit and delete a reminder", async ({ page }) => {
 });
 
 test("shows validation errors and keeps what was typed", async ({ page }) => {
-  await signUp(page);
-  await page.goto("/reminders/new");
+  await signIn(page);
+  await go(page, "/reminders/new/");
   await page.getByRole("main").getByLabel("Title", { exact: true }).fill("Too late");
   await page.getByRole("main").getByLabel("Date").fill("2020-01-01");
   await page.getByRole("main").getByLabel("Time", { exact: true }).fill("09:00");

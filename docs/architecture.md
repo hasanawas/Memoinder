@@ -2,6 +2,8 @@
 
 _Prepared 2026-10-16. All limits below were checked against official docs on that date (links in each section). Free tiers change; re-check before deploying._
 
+> **Update (Phase 5, 2026-10-16):** at your request the site is hosted on **GitHub Pages** instead of Vercel Hobby. Pages serves static files only, so the app became a static Next.js export that talks to Supabase from the browser (Row Level Security was already the real protection), and sign-in switched from email + password to an **emailed 6-digit code**, because GitHub asks Pages sites not to handle passwords. The 2-emails-per-hour limit below now applies to sign-ins; a session lasts until you sign out, so that is enough for one person. Setup and the cost checklist: [deploy.md](deploy.md). The Vercel sections below are kept for the record.
+
 ## Starting point
 
 The GitHub repository `hasanawas/Memoinder` exists but is **empty** (no commits). There is no existing code to review, so this proposal starts fresh.
@@ -29,12 +31,12 @@ The GitHub repository `hasanawas/Memoinder` exists but is **empty** (no commits)
 | Date/time | Luxon (IANA time zones) + `rrule` (recurrence, RFC 5545) | open source |
 | Natural-language date fallback | `chrono-node` (deterministic parser, no AI) | open source (MIT) |
 | Database | Supabase Postgres (Free plan) | free tier |
-| Auth | Supabase Auth, **email + password** (see compromise on emails) | free tier |
+| Auth | Supabase Auth, **emailed 6-digit code** (was email + password before Phase 5) | free tier |
 | Scheduler | `pg_cron` + `pg_net` inside Supabase Postgres | included in Supabase |
 | Delivery worker | One Supabase Edge Function `dispatch-reminders` (Deno) | free tier |
 | Notifications | Standard Web Push (VAPID keys, Push API, Service Worker) | free open standard |
 | Local AI | Ollama + a small instruct model (default `llama3.2:3b`, upgrade `qwen2.5:7b`) | open source |
-| Hosting | Vercel Hobby (personal, non-commercial) | free tier |
+| Hosting | GitHub Pages, static export (was Vercel Hobby before Phase 5) | free for public repos |
 | Source control + CI | GitHub Free, public repo, GitHub Actions for tests only | free tier |
 | Tests | Vitest (unit), Playwright (end-to-end; Chromium already available) | open source |
 | Local dev DB | Supabase CLI (runs Postgres locally in Docker) | open source |
