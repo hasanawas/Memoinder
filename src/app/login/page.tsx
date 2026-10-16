@@ -13,7 +13,7 @@ export default function LoginPage() {
         </Link>
         <h1 className="text-2xl font-semibold">Sign in</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Enter your email and we will send you a 6-digit sign-in code. No password needed.
+          Enter your email and we will send you a sign-in link. No password needed.
         </p>
       </header>
       <LoginForm />

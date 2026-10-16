@@ -19,7 +19,7 @@ test("a wrong sign-in code shows an error", async ({ page }) => {
   await go(page, "/login/");
   const main = page.getByRole("main");
   await main.getByLabel("Email").fill(`wrong-${crypto.randomUUID()}@example.test`);
-  await main.getByRole("button", { name: "Email me a sign-in code" }).click();
+  await main.getByRole("button", { name: "Email me a sign-in link" }).click();
   await main.getByLabel("Code").fill("000000");
   await main.getByRole("button", { name: "Sign in" }).click();
   await expect(main.getByRole("alert")).toContainText(/expired or is invalid|invalid/i);
@@ -30,7 +30,7 @@ test("the emailed link signs you in too", async ({ page }) => {
   await go(page, "/login/");
   const main = page.getByRole("main");
   await main.getByLabel("Email").fill(email);
-  await main.getByRole("button", { name: "Email me a sign-in code" }).click();
+  await main.getByRole("button", { name: "Email me a sign-in link" }).click();
   await expect(main.getByRole("status")).toContainText(email);
   await page.goto(await latestEmailLink(email));
   await expect(page).toHaveURL(/\/reminders\/$/);

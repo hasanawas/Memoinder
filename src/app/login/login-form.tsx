@@ -6,9 +6,11 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase/client";
 import { absoluteUrl } from "@/lib/paths";
 
-// Passwordless sign-in: we email a 6-digit code (and a link). Typing the code
-// works in any browser or installed app, which matters on iPhone, where the
-// Home Screen app does not share sign-ins with Safari.
+// Passwordless sign-in: we email a link. Supabase's built-in email uses its
+// default template, which has only the link; the template that also shows a
+// 6-digit code needs custom SMTP. So the code box stays for when the email has
+// one (local development, or custom SMTP later). The link must be opened in
+// the browser that asked for it, because the sign-in is bound to that browser.
 
 const emailSchema = z.email("Enter a valid email address");
 const codeSchema = z.string().regex(/^\d{6}$/, "Enter the 6-digit code from the email");
@@ -70,7 +72,7 @@ export function LoginForm() {
         {alert}
         <div>
           <button disabled={pending} className="btn-primary">
-            Email me a sign-in code
+            Email me a sign-in link
           </button>
         </div>
       </form>
@@ -80,7 +82,7 @@ export function LoginForm() {
   return (
     <form action={verify} className="flex flex-col gap-4">
       <p role="status" className="text-sm text-green-700 dark:text-green-400">
-        We sent a 6-digit code to {email}. It is valid for one hour.
+        We sent a sign-in email to {email}. Open its link in this browser. If the email shows a 6-digit code, you can type it here instead.
       </p>
       <label className="flex flex-col gap-1">
         <span className="text-sm font-medium">Code</span>
