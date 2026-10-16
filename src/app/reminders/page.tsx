@@ -5,6 +5,9 @@ import { DateTime } from "luxon";
 import { describeSchedule, upcoming } from "@/lib/engine";
 import { listReminders } from "@/lib/reminders/data";
 import { rowToSchedule, type ReminderRow } from "@/lib/reminders/form";
+import { countDevices, latestDeliveryByReminder, type DeliveryView } from "@/lib/push/data";
+import { statusLabel } from "@/lib/push/status";
+import { NotificationsPanel } from "@/components/notifications-panel";
 import { deleteReminderAction } from "./actions";
 
 export const metadata: Metadata = { title: "Reminders · Memoinder" };
@@ -15,6 +18,9 @@ export default function RemindersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Upcoming</h1>
         <div className="flex gap-2">
+          <Link href="/reminders/history" className="btn-secondary">
+            History
+          </Link>
           <Link href="/reminders/chat" className="btn-secondary">
             Chat
           </Link>
@@ -23,6 +29,9 @@ export default function RemindersPage() {
           </Link>
         </div>
       </div>
+      <Suspense fallback={null}>
+        <Notifications />
+      </Suspense>
       <Suspense fallback={<p className="text-zinc-500">Loading reminders…</p>}>
         <ReminderList />
       </Suspense>
@@ -34,8 +43,13 @@ function when(iso: string, zone: string) {
   return DateTime.fromISO(iso, { zone }).toFormat("ccc d LLL yyyy, HH:mm");
 }
 
+async function Notifications() {
+  const devices = await countDevices();
+  return <NotificationsPanel vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null} deviceCount={devices} />;
+}
+
 async function ReminderList() {
-  const rows = await listReminders();
+  const [rows, deliveries] = await Promise.all([listReminders(), latestDeliveryByReminder()]);
   const active = rows.filter((r) => r.status === "active");
   const finished = rows.filter((r) => r.status !== "active");
 
@@ -46,7 +60,7 @@ async function ReminderList() {
     <>
       <ul className="flex flex-col gap-3" aria-label="Upcoming reminders">
         {active.map((r) => (
-          <ReminderItem key={r.id} row={r} />
+          <ReminderItem key={r.id} row={r} last={deliveries.get(r.id)} />
         ))}
       </ul>
       {finished.length > 0 && (
@@ -54,7 +68,7 @@ async function ReminderList() {
           <h2 className="text-lg font-medium">Finished</h2>
           <ul className="flex flex-col gap-3" aria-label="Finished reminders">
             {finished.map((r) => (
-              <ReminderItem key={r.id} row={r} />
+              <ReminderItem key={r.id} row={r} last={deliveries.get(r.id)} />
             ))}
           </ul>
         </section>
@@ -63,7 +77,7 @@ async function ReminderList() {
   );
 }
 
-function ReminderItem({ row }: { row: ReminderRow }) {
+function ReminderItem({ row, last }: { row: ReminderRow; last?: DeliveryView }) {
   const schedule = rowToSchedule(row);
   const later = row.next_fire_at ? upcoming(schedule, new Date(row.next_fire_at), 2) : [];
   return (
@@ -97,6 +111,11 @@ function ReminderItem({ row }: { row: ReminderRow }) {
         )}
       </p>
       <p className="text-xs text-zinc-500">{describeSchedule(schedule)}</p>
+      {last && (
+        <p className="text-xs" data-testid="last-delivery">
+          Last reminder ({when(last.scheduled_for, row.time_zone)}): {statusLabel(last)}
+        </p>
+      )}
     </li>
   );
 }

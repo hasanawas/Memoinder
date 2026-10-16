@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import type { Schedule, Weekday } from "./schedule";
+import type { Schedule, Weekday } from "./schedule.ts";
 
 const DAY_NAMES: Record<Weekday, string> = {
   MO: "Mon",

@@ -44,7 +44,7 @@ The GitHub repository `hasanawas/Memoinder` exists but is **empty** (no commits)
 - **Next.js app (Vercel Hobby):** UI (chat, reminder list, edit/delete, settings), API routes that validate input and write to the database, registers the Service Worker and the push subscription. It does **no** scheduling.
 - **Supabase Postgres:** source of truth. Tables: `reminders` (title, notes, local wall time, IANA time zone, RRULE, `next_fire_at` in UTC, status), `push_subscriptions` (one per browser/device), `deliveries` (one row per send attempt with status). Row Level Security so each user only sees their own rows.
 - **Supabase Auth:** sign-in, user id used by Row Level Security.
-- **`pg_cron` + `pg_net`:** a cron job runs **every minute** inside the database and makes an HTTP POST to the Edge Function. This is Supabase's documented pattern ([Scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions)).
+- **`pg_cron` + `pg_net`:** a cron job runs **every minute** inside the database and, only when a reminder is due, makes an HTTP POST to the Edge Function. This is Supabase's documented pattern ([Scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions)).
 - **Edge Function `dispatch-reminders`:** claims due reminders, sends Web Push, records delivery results, computes the next occurrence for recurring reminders.
 - **Browser push services** (Google FCM for Chrome/Edge, Mozilla autopush for Firefox, Apple for Safari): carry the encrypted message to the device. Using them via the Web Push standard needs no account and no fee.
 - **Ollama (your computer):** turns chat text into a structured "action" (create / list / update / delete). Optional.
@@ -66,7 +66,7 @@ The GitHub repository `hasanawas/Memoinder` exists but is **empty** (no commits)
 | **Pausing** | Free projects with low activity over 7 days are paused (warning email ~1 week before). Restorable for up to 1 year. | see risk below |
 | Overage | Docs: "you will not be charged while using the Free Plan." | $0 |
 
-**Pausing risk:** Supabase's docs define inactivity as not enough "user database activity" and list API calls as a way to prevent pausing. They do not say whether `pg_cron` traffic counts. Our dispatcher makes real API calls into the project every minute, and you will use the app regularly, so pausing is unlikely, but it is **inferred, not guaranteed**. Mitigation: a pause is reversible with no data loss (click "Resume" in the dashboard), and the warning email arrives first. While paused, reminders do **not** fire.
+**Pausing risk:** Supabase's docs define inactivity as not enough "user database activity" and list API calls as a way to prevent pausing. They do not say whether `pg_cron` traffic counts. The dispatcher only calls into the project in minutes when a reminder is due (Phase 4 chose this to save invocations), so regular use of the app is what keeps the project active. Pausing is unlikely if you open Memoinder at least weekly, but it is **inferred, not guaranteed**. Mitigation: a pause is reversible with no data loss (click "Resume" in the dashboard), and the warning email arrives first. While paused, reminders do **not** fire.
 
 ### Vercel Hobby ([Hobby plan](https://vercel.com/docs/plans/hobby), [cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing))
 
@@ -173,7 +173,7 @@ Conditions required to keep it at $0:
 2. Stay on Supabase **Free** and Vercel **Hobby**. Do not start the Vercel Pro trial or enable Supabase add-ons (compute upgrades, PITR, custom domains, IPv4).
 3. Vercel Hobby is for **personal, non-commercial** use only. Selling or commercialising Memoinder would require a different host.
 4. Usage stays inside quotas (expected well under 10% of each).
-5. The Supabase project stays active (normal weekly use plus the dispatcher).
+5. The Supabase project stays active (normal weekly use; the dispatcher only adds traffic when reminders are due).
 6. Ollama runs on hardware you already own (electricity is your only cost).
 
 Before the first deployment I will produce a checklist of each service's actual dashboard settings (plan, billing page showing no card, usage) instead of claiming $0 from this document.

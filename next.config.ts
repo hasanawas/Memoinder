@@ -12,6 +12,18 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async headers() {
+    return [
+      {
+        // Browsers must always fetch the newest Service Worker.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

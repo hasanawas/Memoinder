@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:db": "vitest run --config vitest.db.config.mts",
-    "eval:ai": "vitest run --config vitest.eval.config.mts"
+    "eval:ai": "vitest run --config vitest.eval.config.mts",
+    "push:keys": "node scripts/vapid-keys.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

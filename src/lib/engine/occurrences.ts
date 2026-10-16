@@ -1,6 +1,14 @@
 import { DateTime } from "luxon";
-import { RRule, type Options, type Weekday as RRuleWeekday } from "rrule";
-import { wallTimeToInstant, type Schedule, type Weekday } from "./schedule";
+import * as rruleModule from "rrule";
+import type { Options, Weekday as RRuleWeekday } from "rrule";
+import { wallTimeToInstant, type Schedule, type Weekday } from "./schedule.ts";
+
+// rrule ships an ES module for bundlers and a UMD file for everything else.
+// Deno (the Edge Function runtime) loads the UMD file, where the classes sit on
+// the default export, so look in both places.
+const RRule: typeof rruleModule.RRule =
+  rruleModule.RRule ?? (rruleModule as unknown as { default: typeof rruleModule }).default.RRule;
+type RRule = rruleModule.RRule;
 
 // rrule's own time-zone support is unreliable, so we use the common
 // "floating time" technique: rrule works on wall-clock times disguised as UTC,

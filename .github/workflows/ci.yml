@@ -32,17 +32,35 @@ jobs:
         env:
           TZ: Pacific/Kiritimati
 
-      # A throwaway local Supabase (Postgres + Auth) inside the runner, with
-      # this branch's migrations applied. Nothing hosted is touched.
+      # A throwaway local Supabase (Postgres + Auth + Edge Functions) inside
+      # the runner, with this branch's migrations applied. Nothing hosted is
+      # touched, and the VAPID keys are generated fresh and thrown away.
       - name: Start local Supabase
-        run: npx supabase start -x studio,imgproxy,postgres-meta,vector,logflare,supavisor,edge-runtime
-      - name: Write .env.local for the tests
+        run: npx supabase start -x studio,imgproxy,postgres-meta,vector,logflare,supavisor,realtime,storage-api
+      - name: Write local env files for the tests
         run: |
+          npm run --silent push:keys > /tmp/keys.txt
           npx supabase status -o env \
             | grep -E '^(API_URL|PUBLISHABLE_KEY)=' \
             | sed -e 's/^API_URL=/NEXT_PUBLIC_SUPABASE_URL=/' -e 's/^PUBLISHABLE_KEY=/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=/' \
             > .env.local
+          grep '^NEXT_PUBLIC_VAPID_PUBLIC_KEY=' /tmp/keys.txt >> .env.local
+          { echo 'MEMOINDER_DISPATCH_SECRET=local-dev-only-secret'; grep -E '^VAPID_' /tmp/keys.txt; } > supabase/functions/.env
+      - name: Serve the Edge Function
+        run: |
+          nohup npx supabase functions serve > /tmp/functions.log 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/dispatch-reminders || true)
+            [ "$code" = "403" ] && exit 0
+            sleep 2
+          done
+          cat /tmp/functions.log; exit 1
       - run: npm run test:db
+        env:
+          REQUIRE_FUNCTIONS: "1"
 
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Edge Function log
+        if: failure()
+        run: cat /tmp/functions.log || true

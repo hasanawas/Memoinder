@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "./env";
 
-const PUBLIC_PATHS = ["/", "/login"];
+// The acknowledgement endpoint is called by the Service Worker, which proves
+// itself with a one-time token instead of a session.
+const PUBLIC_PATHS = ["/", "/login", "/api/deliveries/ack"];
 
 /**
  * Runs before every page request: refreshes the Supabase session cookie if it

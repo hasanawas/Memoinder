@@ -1,5 +1,5 @@
-import type { Schedule } from "./schedule";
-import { nextOccurrence } from "./occurrences";
+import type { Schedule } from "./schedule.ts";
+import { nextOccurrence } from "./occurrences.ts";
 
 // Decides what the dispatcher should do with a reminder whose time has come.
 // The dispatcher runs about once a minute, so "on time" allows some slack.
